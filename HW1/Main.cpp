@@ -15,11 +15,13 @@ using namespace std;
 class Chromosome {
 private:
 	int _gen_size;
+	int _score;
 	char* _gen = NULL;
 
 private:
 	void init(int gen_size, char *gen) {
 		_gen_size = gen_size;
+		_score = -1;
 		_gen = new char[gen_size];
 		if (gen == NULL) {
 			// Generate random one
@@ -54,6 +56,9 @@ public:
 			cout << endl;
 		}
 #endif
+	}
+	void set_score(int score) {
+		_score = score;
 	}
 
 	~Chromosome() {
@@ -135,7 +140,6 @@ public:
 			sscanf(line.c_str(), "%d %d %d", &v_from, &v_to, &weight);
 
 			GraphEdge* edge = new GraphEdge(v_from, v_to, weight);
-
 			_edges[v_from]->push_back(edge);
 		}
 
@@ -193,7 +197,6 @@ public:
 private:
 	EdgeGraphReader() {}
 };
-
 
 int main() {
 	time_t begin, now;
