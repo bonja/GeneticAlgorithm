@@ -3,16 +3,17 @@ SRCS = $(wildcard *.cpp)
 OBJS = $(SRCS:.cpp=.o)
 
 MACRO = -D_PRINT_DEBUG
+OPT = -O3
 
 TARGET = hw1
 
 .phony: all
 
 %.o: %.cpp
-	@g++ $(MACRO) -c $<
+	@g++ $(MACRO) $(OPT) -c $<
 
 $(TARGET): $(OBJS)
-	@g++ -o $@ $(OBJS)
+	@g++ $(OPT) -o $@ $(OBJS)
 
 all: $(TARGET)
 
