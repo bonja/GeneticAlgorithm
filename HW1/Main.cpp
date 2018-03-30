@@ -8,6 +8,8 @@
 #include <string>
 #include <list>
 
+#include <time.h>
+
 using namespace std;
 
 class Chromosome {
@@ -40,6 +42,7 @@ public:
 	}
 
 	void print() {
+#ifdef _PRINT_DEBUG
 		if (_gen != NULL)
 		{
 			cout << "GEN : ";
@@ -50,6 +53,7 @@ public:
 			}
 			cout << endl;
 		}
+#endif
 	}
 
 	~Chromosome() {
@@ -192,15 +196,29 @@ private:
 
 
 int main() {
+	time_t begin, now;
+	begin = time(NULL);
+	int TIME_LIMIT = 5;
+
 	// Fix rand seed
 	srand(3850);
 
 	EdgeGraphReader eg = EdgeGraphReader(string("maxcur.in"));
 	eg.print();
 
-	Chromosome chrom(eg.get_vertex_size());
-	chrom.print();
-	cout << eg.score(chrom.get_pattern()) << endl;
+	int max_score = 0;
+	while(true) {
+		if ((time(NULL) - begin) > (TIME_LIMIT - 1)) {
+			break;
+		}
+		Chromosome chrom(eg.get_vertex_size());
+		
+		int score = eg.score(chrom.get_pattern());
+		if (score > max_score) {
+			max_score = score;
+		}
+	}
+	cout << max_score << endl;
 
 	return 0;
 }
