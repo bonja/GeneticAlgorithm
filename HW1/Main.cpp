@@ -1,14 +1,19 @@
 
 #include <cstdio>
+#include <cstring>
 #include <stdlib.h>
 
 #include <iostream>
-#include <fstream>
 
 #include <string>
 #include <list>
+#include <algorithm>
+#include <vector>
 
 #include <time.h>
+#include <assert.h>
+
+#include "EdgeGraphReader.h"
 
 using namespace std;
 
@@ -30,12 +35,21 @@ public:
 		_gen_size = rval._gen_size;
 
 		_gen = new char[_gen_size];
-		for (int i=0; i<_gen_size; ++i) {
-			_gen[i] = rval._gen[i];
-		}
+		memcpy(_gen, rval._gen, _gen_size*sizeof(char));
 		return *this;
 	}
 
+	bool operator<(const Chromosome& rval) {
+		assert(_score_set);
+		assert(rval._score_set);
+		return (_score < rval._score);
+	}
+
+	bool operator>(const Chromosome& rval) {
+		assert(_score_set);
+		assert(rval._score_set);
+		return (_score > rval._score);
+	}
 	bool operator==(const Chromosome& rval) {
 		if (_gen_size != rval._gen_size)
 			return false;
@@ -46,6 +60,14 @@ public:
 		}
 
 		return true;
+	}
+	Chromosome(const Chromosome& rval) {
+		_score = rval._score;
+		_score_set = rval._score_set;
+		_gen_size = rval._gen_size;
+
+		_gen = new char[_gen_size];
+		memcpy(_gen, rval._gen, _gen_size*sizeof(char));
 	}
 private:
 	void init(int gen_size, const char *gen) {
@@ -59,9 +81,7 @@ private:
 				_gen[i] = rand()%2;
 			}
 		} else {
-			for(int i=0; i<_gen_size; ++i) {
-				_gen[i] = gen[i];
-			}
+			memcpy(_gen, gen, _gen_size*sizeof(char));
 		}
 		// Fisrt one should be 1 by the definition.
 		_gen[0] = 1;
@@ -146,134 +166,6 @@ private:
 	Chromosome() {}
 };
 
-typedef struct _GraphEdge {
-public:
-	int _v_from, _v_to;
-	int _weight;
-
-	// Constructor
-public:
-	_GraphEdge(int v_from, int v_to, int weight):
-		_v_from(v_from),
-		_v_to(v_to),
-		_weight(weight)
-	{
-	}
-
-	void print() {
-#ifdef _PRINT_DEBUG
-		cout << _v_from << " -> " << _v_to << " (" << _weight << ")";
-#endif
-	}
-
-private:
-	_GraphEdge() {}
-
-} GraphEdge;
-
-class EdgeGraphReader {
-
-private:
-	int _vertex_count, _edge_count;
-	list<GraphEdge*>** _edges = NULL;
-
-public:
-	int get_vertex_size() {
-		return _vertex_count - 1;
-	}
-
-public:
-	EdgeGraphReader(string filename) {
-		ifstream fs(filename.c_str());
-
-		// First line
-		// vertex_count, edge_count
-		string line;
-		getline(fs, line);
-		sscanf (line.c_str(), "%d %d", &_vertex_count, &_edge_count);
-		
-		// vertex idx starting from 1
-		++_vertex_count;
-
-		_edges = new list<GraphEdge*>*[_vertex_count]; // vertex idx starting from 1
-		for (int i=0; i<_vertex_count; ++i) {
-			_edges[i] = new list<GraphEdge*>();
-		}
-
-		// After all
-		// v_from v_to weight
-		for( string line; getline( fs, line ); ) {
-			int v_from = -1, v_to = -1, weight = 0;
-
-			if (line.length() <= 0) {
-				continue;
-			}
-
-			sscanf(line.c_str(), "%d %d %d", &v_from, &v_to, &weight);
-
-			GraphEdge* edge = new GraphEdge(v_from, v_to, weight);
-			_edges[v_from]->push_back(edge);
-
-			// Need to add for reverse
-			GraphEdge* edge_rev = new GraphEdge(v_to, v_from, weight);
-			_edges[v_to]->push_back(edge_rev);
-		}
-
-	}
-
-	void print() {
-#ifdef _PRINT_DEBUG
-		list<GraphEdge*>::iterator iter;
-		for (int i=0; i<_vertex_count; ++i) {
-			cout << "V(" << i << ") : ";
-			for (iter = _edges[i]->begin(); iter != _edges[i]->end(); ++iter) {
-				(*iter)->print();
-			}
-			cout << endl;
-		}
-#endif
-	}
-
-	~EdgeGraphReader() {
-		if (_edges != NULL) {
-			list<GraphEdge*>::iterator iter;
-			for (int i=0; i<_vertex_count; ++i) {
-				for (iter = _edges[i]->begin(); iter != _edges[i]->end(); ++iter) {
-					delete(*iter);
-				}
-				delete(_edges[i]);
-			}
-			delete(_edges);
-		}
-	}
-
-	int score(const char* pattern) {
-		int score = 0;
-
-		for(int i=0; i<get_vertex_size(); ++i) {
-
-			if (pattern[i] != 0)
-				continue;
-
-			int v_0 = i+1;
-			list<GraphEdge*>::iterator iter;
-			for (iter = _edges[v_0]->begin(); iter != _edges[v_0]->end(); ++iter) {
-				if (pattern[(*iter)->_v_to-1] == 1) {
-#ifdef _PRINT_DEBUG
-			//		cout << v_0 << " -> " << (*iter)->_v_to << " : " << (*iter)->_weight << endl;
-#endif
-					score += (*iter)->_weight;
-				}
-			}
-		}
-
-		return score;
-	}
-
-private:
-	EdgeGraphReader() {}
-};
-
 int get_score(Chromosome &chrom, EdgeGraphReader &eg) {
 	int score = 0;
 	bool prev_calc = false;
@@ -287,6 +179,7 @@ int get_score(Chromosome &chrom, EdgeGraphReader &eg) {
 	return score;
 }
 
+// Fully random search
 Chromosome get_random_champ(EdgeGraphReader &eg) {
 	time_t begin, now;
 	begin = time(NULL);
@@ -308,20 +201,23 @@ Chromosome get_random_champ(EdgeGraphReader &eg) {
 
 	return champ;
 }
-void selection(EdgeGraphReader &eg, Chromosome* population[],
+
+// GA implementations
+void selection(EdgeGraphReader &eg, vector<Chromosome> &population,
 		Chromosome **p1, Chromosome **p2) {
-	int idx_p1 = rand()%POPULATION_SIZE;
-	int idx_p2 = rand()%POPULATION_SIZE;
+	int idx_p1 = rand()%population.size();
+	int idx_p2 = rand()%population.size();
 
 	if (idx_p1 == idx_p2) {
-		idx_p2 = (idx_p2 + 1)%POPULATION_SIZE;
+		idx_p2 = (idx_p2 + 1)%population.size();
 	}
 
-	*p1 = population[idx_p1];
-	*p2 = population[idx_p2];
+	*p1 = &population[idx_p1];
+	*p2 = &population[idx_p2];
 }
 
-void replace(EdgeGraphReader &eg, Chromosome* population[], Chromosome* offspring[]) {
+void replace(EdgeGraphReader &eg, vector<Chromosome> &population,
+		vector<Chromosome> &offsprings) {
 }
 
 Chromosome get_GA_champ(EdgeGraphReader &eg) {
@@ -333,60 +229,63 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 	Chromosome champ(eg.get_vertex_size());
 
 	// Population Initialize
-	Chromosome* population[POPULATION_SIZE];
+	vector<Chromosome> population;
 	for (int i=0; i<POPULATION_SIZE; ++i) {
-		population[i] = new Chromosome(eg.get_vertex_size());
-
-		int champ_score = get_score(champ, eg);
-		int score = get_score(*population[i], eg);
-
-		if (score > champ_score) {
-			champ = *population[i];
-		}
+		population.push_back(Chromosome(eg.get_vertex_size()));
 	}
 
+	for (vector<Chromosome>::iterator it = population.begin();
+			it != population.end(); ++it) {
+		int champ_score = get_score(champ, eg);
+		int score = get_score(*it, eg);
+
+		if (score > champ_score) {
+			champ = *it;
+		}
+	}
+	sort(population.begin(), population.end());
+
+	/* sort check
+	for (vector<Chromosome>::iterator it = population.begin();
+			it != population.end(); ++it) {
+		int score = get_score(*it, eg);
+		cout << score << endl;
+	}
+	*/
+
 	// Life goes on...
-	Chromosome* offspring[CROSS_PER_GENERATION] = { NULL, };
 	while(true) {
 		//TODO - optimize every time check
 		if ((time(NULL) - begin) > (TIME_LIMIT - 1)) {
 			break;
 		}
-		
+
+		vector<Chromosome> offsprings;
 		for (int i=0; i<CROSS_PER_GENERATION; ++i) {
 			Chromosome *p1, *p2;
 			// weight for each parent
 			float p1_w = 0.0, p2_w = 0.0;
 
 			selection(eg, population, &p1, &p2);
-			offspring[i] = new Chromosome(*p1, *p2, p1_w, p2_w);
+			Chromosome child(*p1, *p2, p1_w, p2_w);
 
 			// mutate ratio
 			float m_w = 0.05;
-			offspring[i]->mutation(m_w);
+			child.mutation(m_w);
 
 			// New champ?
 			int champ_score = get_score(champ, eg);
-			int score = get_score(*offspring[i], eg);
+			int score = get_score(child, eg);
 			if (score > champ_score) {
-				champ = *offspring[i];
+				champ = child;
 			}
+
+			offsprings.push_back(child);
 		}
 
-		replace(eg, population, offspring);
-
-		for (int i=0; i<CROSS_PER_GENERATION; ++i) {
-			if (offspring[i] != NULL) {
-				delete(offspring[i]);
-				offspring[i] = NULL;
-			}
-		}
+		replace(eg, population, offsprings);
 	}
 
-	// Terminate
-	for (int i=0; i<POPULATION_SIZE; ++i) {
-		delete(population[i]);
-	}
 	return champ;
 }
 
