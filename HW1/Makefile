@@ -2,7 +2,7 @@
 SRCS = $(wildcard *.cpp)
 OBJS = $(SRCS:.cpp=.o)
 
-MACRO = -D_PRINT_DEBUG_
+MACRO = -D_PRINT_DEBUG
 OPT = -O3
 
 TARGET = hw1
