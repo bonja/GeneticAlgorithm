@@ -27,12 +27,14 @@ private:
 	bool _score_set;
 	int _gen_size;
 	char* _gen = NULL;
+	EdgeGraphReader *_eg;
 
 public:
 	Chromosome& operator=(const Chromosome& rval) {
 		_score = rval._score;
 		_score_set = rval._score_set;
 		_gen_size = rval._gen_size;
+		_eg = rval._eg;
 
 		_gen = new char[_gen_size];
 		memcpy(_gen, rval._gen, _gen_size*sizeof(char));
@@ -65,16 +67,20 @@ public:
 		_score = rval._score;
 		_score_set = rval._score_set;
 		_gen_size = rval._gen_size;
+		_eg = rval._eg;
 
 		_gen = new char[_gen_size];
 		memcpy(_gen, rval._gen, _gen_size*sizeof(char));
 	}
 private:
-	void init(int gen_size, const char *gen) {
-		_gen_size = gen_size;
+	void init(const char *gen, EdgeGraphReader *eg) {
+		_eg = eg;
+
 		_score = 0;
 		_score_set = false;
-		_gen = new char[gen_size];
+
+		_gen_size = eg->get_vertex_size();
+		_gen = new char[_gen_size];
 		if (gen == NULL) {
 			// Generate random one
 			for(int i=0; i<_gen_size; ++i) {
@@ -88,11 +94,11 @@ private:
 	}
 
 public:
-	Chromosome(int gen_size) {
-		init(gen_size, NULL);
+	Chromosome(EdgeGraphReader *eg) {
+		init(NULL, eg);
 	}
-	Chromosome(int gen_size, char *gen) {
-		init(gen_size, gen);
+	Chromosome(char *gen, EdgeGraphReader *eg) {
+		init(gen, eg);
 	}
 
 	// GA implementations
@@ -100,6 +106,8 @@ public:
 	// Xover
 	Chromosome(const Chromosome& p1,
 			const Chromosome& p2, float p1_w, float p2_w) {
+		_eg = p1._eg;
+
 		_score = 0;
 		_score_set = false;
 
@@ -142,6 +150,7 @@ public:
 		}
 	}
 
+	/*
 	const char *get_pattern() const {
 		return _gen;
 	}
@@ -149,16 +158,16 @@ public:
 	int get_pattern_size() const {
 		return _gen_size;
 	}
+	*/
 
 public:
-	void set_score(int score) {
-		_score = score;
-		_score_set = true;
-	}
+	int get_score() {
+		if (!_score_set) {
+			_score = _eg->score(_gen);
+			_score_set = true;
+		}
 
-	bool get_score (int* score) const {
-		*score = _score;
-		return _score_set;
+		return _score;
 	}
 
 
@@ -166,33 +175,20 @@ private:
 	Chromosome() {}
 };
 
-int get_score(Chromosome &chrom, EdgeGraphReader &eg) {
-	int score = 0;
-	bool prev_calc = false;
-
-	prev_calc = chrom.get_score(&score);
-	if (prev_calc == false) {
-		score = eg.score(chrom.get_pattern());
-		chrom.set_score(score);
-	}
-
-	return score;
-}
-
 // Fully random search
 Chromosome get_random_champ(EdgeGraphReader &eg) {
 	time_t begin, now;
 	begin = time(NULL);
 
-	Chromosome champ(eg.get_vertex_size());
+	Chromosome champ(&eg);
 	while(true) {
 		if ((time(NULL) - begin) > (TIME_LIMIT - 1)) {
 			break;
 		}
-		Chromosome chrom(eg.get_vertex_size());
+		Chromosome chrom(&eg);
 		
-		int score = get_score(chrom, eg);
-		int champ_score = get_score(champ, eg);
+		int score = chrom.get_score();
+		int champ_score = champ.get_score();
 
 		if (score > champ_score) {
 			champ = chrom;
@@ -226,18 +222,18 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 	begin = time(NULL);
 
 	// Champion
-	Chromosome champ(eg.get_vertex_size());
+	Chromosome champ(&eg);
 
 	// Population Initialize
 	vector<Chromosome> population;
 	for (int i=0; i<POPULATION_SIZE; ++i) {
-		population.push_back(Chromosome(eg.get_vertex_size()));
+		population.push_back(Chromosome(&eg));
 	}
 
 	for (vector<Chromosome>::iterator it = population.begin();
 			it != population.end(); ++it) {
-		int champ_score = get_score(champ, eg);
-		int score = get_score(*it, eg);
+		int champ_score = champ.get_score();
+		int score = (*it).get_score();
 
 		if (score > champ_score) {
 			champ = *it;
@@ -274,8 +270,8 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 			child.mutation(m_w);
 
 			// New champ?
-			int champ_score = get_score(champ, eg);
-			int score = get_score(child, eg);
+			int champ_score = champ.get_score();
+			int score = child.get_score();
 			if (score > champ_score) {
 				champ = child;
 			}
@@ -302,7 +298,7 @@ int main() {
 	*/
 
 	Chromosome GA_champ = get_GA_champ(eg);
-	cout << "GA champ : " << get_score(GA_champ, eg) << endl;
+	cout << "GA champ : " << GA_champ.get_score() << endl;
 
 	return 0;
 }
