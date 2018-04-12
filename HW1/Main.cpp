@@ -22,6 +22,8 @@ using namespace std;
 int TIME_LIMIT = 180;
 int POPULATION_SIZE = 800;
 int CROSS_PER_GENERATION = 400;
+int CUT_COUNT = 10;
+
 int SELECTION_BRID_SAMPLING = 100;
 int REPLACE_SAMPLING = 100;
 
@@ -130,7 +132,7 @@ public:
 
 		init(p1_gen, p1._eg);
 
-		int cut_count = (_gen_size/20)*2;
+		int cut_count = CUT_COUNT;
 
 		cross_over(p2, cut_count);
 	}
@@ -564,25 +566,34 @@ int main() {
 #ifdef _FACTOR_TEST
 	float population_factor[] = {1.0, 1.5, 2.0, 2.5};
 	float cross_count_factor[] = {1.0, 1.5, 2.0, 2.5, 3.0};
+	float cut_count_factor[] = {5.0, 10.0, 15.0, 20.0};
 
 	int p_f_max = sizeof(population_factor) / sizeof(population_factor[0]);
 	int c_f_max = sizeof(cross_count_factor) / sizeof(cross_count_factor[0]);
+	int cut_f_max = sizeof(cut_count_factor) / sizeof(cut_count_factor[0]);
 
 	for(int p_f_idx = 0; p_f_idx<p_f_max; ++p_f_idx) {
 		for (int c_f_idx =0; c_f_idx<c_f_max; ++c_f_idx) {
-			float p_factor = population_factor[p_f_idx];
-			float c_factor = cross_count_factor[c_f_idx];
-			POPULATION_SIZE = eg.get_vertex_size()*p_factor;
-			CROSS_PER_GENERATION = POPULATION_SIZE/c_factor;
+			for (int cut_f_idx =0; cut_f_idx<cut_f_max; ++cut_f_idx) {
+				float p_factor = population_factor[p_f_idx];
+				float c_factor = cross_count_factor[c_f_idx];
+				float cut_factor = cut_count_factor[cut_f_idx];
 
-			Chromosome GA_champ = get_GA_champ(eg);
-			cout << GA_champ.get_score() << " - " << p_factor << "," << c_factor << endl;
+				POPULATION_SIZE = eg.get_vertex_size()*p_factor;
+				CROSS_PER_GENERATION = POPULATION_SIZE/c_factor;
+				CUT_COUNT = eg.get_vertex_size()/cut_factor;
+
+				Chromosome GA_champ = get_GA_champ(eg);
+				cout << GA_champ.get_score() << " - " << p_factor << "," << c_factor << "," << cut_factor << endl;
+			}
 		}
 	}
 
 #else
 	POPULATION_SIZE = eg.get_vertex_size()*4;
 	CROSS_PER_GENERATION = POPULATION_SIZE/2;
+	CUT_COUNT = eg.get_vertex_size()/10;
+
 	SELECTION_BRID_SAMPLING = POPULATION_SIZE/10;
 	REPLACE_SAMPLING = POPULATION_SIZE/10;
 
