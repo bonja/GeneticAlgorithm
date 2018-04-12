@@ -19,7 +19,7 @@
 
 using namespace std;
 
-int TIME_LIMIT = 15;
+int TIME_LIMIT = 180;
 int POPULATION_SIZE = 800;
 int CROSS_PER_GENERATION = 400;
 int SELECTION_BRID_SAMPLING = 100;
@@ -123,6 +123,43 @@ public:
 	// GA implementations
 public:
 	// Xover
+	Chromosome(const Chromosome& p1, const Chromosome& p2) {
+		assert(p1._gen_size == p2._gen_size);
+
+		const char *p1_gen = p1.get_gen();
+
+		init(p1_gen, p1._eg);
+
+		int cut_count = (_gen_size/20)*2;
+
+		cross_over(p2, cut_count);
+	}
+
+	void cross_over(const Chromosome& partner, int cut_count) {
+		const char *partner_gen = partner.get_gen();
+
+		set<int> idxs_cut;
+		while(idxs_cut.size() < cut_count) {
+			idxs_cut.insert(rand()%(_gen_size+1));
+		}
+
+//		_gen = new char[_gen_size];
+		bool my_turn = true;
+		set<int>::iterator it = idxs_cut.begin();
+		for(int i=0; i<_gen_size; ++i) {
+			if ((it != idxs_cut.end()) && ((*it) == i)) {
+				my_turn = my_turn ? false : true;
+				++it;
+			}
+
+			if (!my_turn) {
+				//_gen[i] = partner_gen[i];
+				_gen[i] = my_turn ? _gen[i] : partner_gen[i];
+			}
+		}
+	}
+
+	// Xover - check diversity
 	Chromosome(const Chromosome& p1,
 			const Chromosome& p2, float grad_diversity) {
 		assert(p1._gen_size == p2._gen_size);
@@ -149,10 +186,7 @@ public:
 			idxs_cut.insert(rand()%(_gen_size+1));
 		}
 
-		/*
-		int p1_count = 0;
-		*/
-		_gen = new char[_gen_size];
+//		_gen = new char[_gen_size];
 		bool p1_turn = true;
 		set<int>::iterator it = idxs_cut.begin();
 		for(int i=0; i<_gen_size; ++i) {
@@ -161,15 +195,7 @@ public:
 				++it;
 			}
 			_gen[i] = p1_turn ? p1_gen[i] : p2_gen[i];
-			/*
-			if (p1_turn)
-				p1_count++;
-				*/
 		}
-
-		/*
-		cout << "p1 : " << (float)p1_count / (float)_gen_size << endl;
-		*/
 	}
 
 	// Mutation
@@ -315,6 +341,22 @@ private:
 
 // GA implementations
 void selection(EdgeGraphReader &eg, vector<Chromosome> &population,
+		Chromosome **p1, Chromosome **p2) {
+
+	// Pick a parent in the high 30 percent
+	int idx_p1 = (population.size() - 1) - (rand()%(population.size()/30));
+
+	// Pick a bride
+	int idx_p2 = rand()%population.size();
+	if (idx_p1 == idx_p2) {
+		idx_p2 = (idx_p2 + 1)%population.size();
+	}
+
+	*p1 = &population[idx_p1];
+	*p2 = &population[idx_p2];
+}
+
+void selection_with_similarity(EdgeGraphReader &eg, vector<Chromosome> &population,
 		Chromosome **p1, Chromosome **p2, float target_similarity) {
 
 	// Pick a parent in the high 20 percent
@@ -354,6 +396,29 @@ void selection(EdgeGraphReader &eg, vector<Chromosome> &population,
 }
 
 void replace(EdgeGraphReader &eg, vector<Chromosome> &population,
+		vector<Chromosome> &offsprings, float *score_avg, int *score_max, int *score_min) {
+
+	int offsprings_size = offsprings.size();
+
+	int idx_target = -1;
+	for(vector<Chromosome>::iterator it = offsprings.begin();
+			it != offsprings.end(); ++it) {
+		idx_target += 1;
+
+		*score_avg -= (float)population[idx_target].get_score()/(float)population.size();
+		*score_avg += (float)(*it).get_score()/(float)population.size();
+
+		population[idx_target] = (*it);
+	}
+
+	//TODO - optimization
+	sort(population.begin(), population.end());
+
+	*score_max = population[population.size()-1].get_score();
+	*score_min = population[0].get_score();
+}
+
+void replace_with_diversity(EdgeGraphReader &eg, vector<Chromosome> &population,
 		vector<Chromosome> &offsprings, float grad_diversity,
 		Diversity &diversity, float *score_avg, int *score_max, int *score_min) {
 
@@ -450,8 +515,10 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 		for (int i=0; i<CROSS_PER_GENERATION; ++i) {
 			Chromosome *p1, *p2;
 
-			selection(eg, population, &p1, &p2, target_similarity);
-			Chromosome child(*p1, *p2, target_diversity - current_diversity);
+			selection(eg, population, &p1, &p2);
+			Chromosome child(*p1, *p2);
+//			selection(eg, population, &p1, &p2, target_similarity);
+//			Chromosome child(*p1, *p2, target_diversity - current_diversity);
 
 			// mutate ratio
 			float m_w = 0.01 + 0.05*target_similarity;
@@ -467,13 +534,19 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 			offsprings.push_back(child);
 		}
 
-		replace(eg, population, offsprings, target_diversity - current_diversity,
+		replace(eg, population, offsprings, 
+				&score_avg, &score_max, &score_min);
+
+		/*
+		replace_with_diversity(eg, population, offsprings,
+				target_diversity - current_diversity,
 				diversity, &score_avg, &score_max, &score_min);
+				*/
 
 #ifdef _PRINT_DEBUG
 		if (++generation % 100 == 1) {
 			cout << generation << "th generation" << endl;
-			cout << "Diversity : " << diversity.get_diversity() << endl;
+//			cout << "Diversity : " << diversity.get_diversity() << endl;
 			cout << "Score : " << score_avg << ", " << score_max << ", " << score_min << endl;
 		}
 #endif
@@ -488,8 +561,30 @@ int main() {
 	srand(3850);
 
 	EdgeGraphReader eg = EdgeGraphReader(string("maxcur.in"));
+#ifdef _FACTOR_TEST
+	float population_factor[] = {1.0, 1.5, 2.0, 2.5};
+	float cross_count_factor[] = {1.0, 1.5, 2.0, 2.5, 3.0};
 
-	cout << eg.get_vertex_size() << endl;
+	int p_f_max = sizeof(population_factor) / sizeof(population_factor[0]);
+	int c_f_max = sizeof(cross_count_factor) / sizeof(cross_count_factor[0]);
+
+	for(int p_f_idx = 0; p_f_idx<p_f_max; ++p_f_idx) {
+		for (int c_f_idx =0; c_f_idx<c_f_max; ++c_f_idx) {
+			float p_factor = population_factor[p_f_idx];
+			float c_factor = cross_count_factor[c_f_idx];
+			POPULATION_SIZE = eg.get_vertex_size()*p_factor;
+			CROSS_PER_GENERATION = POPULATION_SIZE/c_factor;
+
+			Chromosome GA_champ = get_GA_champ(eg);
+			cout << GA_champ.get_score() << " - " << p_factor << "," << c_factor << endl;
+		}
+	}
+
+#else
+	POPULATION_SIZE = eg.get_vertex_size()*4;
+	CROSS_PER_GENERATION = POPULATION_SIZE/2;
+	SELECTION_BRID_SAMPLING = POPULATION_SIZE/10;
+	REPLACE_SAMPLING = POPULATION_SIZE/10;
 
 #ifdef _RAND_TEST
 	Chromosome rand_champ = get_random_champ(eg);
@@ -497,6 +592,7 @@ int main() {
 #else
 	Chromosome GA_champ = get_GA_champ(eg);
 	cout << "GA champ : " << GA_champ.get_score() << endl;
+#endif
 #endif
 
 	return 0;
