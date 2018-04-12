@@ -19,7 +19,7 @@
 
 using namespace std;
 
-int TIME_LIMIT = 180;
+int TIME_LIMIT = 15;
 int POPULATION_SIZE = 800;
 int CROSS_PER_GENERATION = 400;
 int CUT_COUNT = 10;
@@ -42,7 +42,7 @@ public:
 		_gen_size = rval._gen_size;
 		_eg = rval._eg;
 
-		_gen = new char[_gen_size];
+//		_gen = new char[_gen_size];
 		memcpy(_gen, rval._gen, _gen_size*sizeof(char));
 		return *this;
 	}
@@ -145,7 +145,6 @@ public:
 			idxs_cut.insert(rand()%(_gen_size+1));
 		}
 
-//		_gen = new char[_gen_size];
 		bool my_turn = true;
 		set<int>::iterator it = idxs_cut.begin();
 		for(int i=0; i<_gen_size; ++i) {
@@ -188,7 +187,6 @@ public:
 			idxs_cut.insert(rand()%(_gen_size+1));
 		}
 
-//		_gen = new char[_gen_size];
 		bool p1_turn = true;
 		set<int>::iterator it = idxs_cut.begin();
 		for(int i=0; i<_gen_size; ++i) {
@@ -605,6 +603,9 @@ int main() {
 	cout << "GA champ : " << GA_champ.get_score() << endl;
 #endif
 #endif
+	// TODO - dynamic cut count
+	// TODO - dynamic mutation ratio
+	// TODO - dynamic selection - polynomial? exponetial?
 
 	return 0;
 }
