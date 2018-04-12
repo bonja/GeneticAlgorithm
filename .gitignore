@@ -1,6 +1,7 @@
 *
 !*/
 !*/Makefile
+!*.h
 !*.cpp
 !*.in
 !*/data/*
