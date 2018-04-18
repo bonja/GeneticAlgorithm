@@ -396,10 +396,8 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 	cout << "Score : " << score_avg << ", " << score_max << ", " << score_min << endl;
 #endif
 
-#ifdef _PRINT_DEBUG
 	int generation = 0;
 	time_t prev_remain = 0;
-#endif
 	// Life goes on...
 	while(true) {
 		//TODO - optimize every time check
@@ -432,16 +430,16 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 		replace(eg, population, offsprings, 
 				&score_avg, &score_max, &score_min);
 
-#ifdef _PRINT_DEBUG
 		generation += 1;
 		if (prev_remain != remain) {
 			prev_remain = remain;
 			SAMPLING_COUNT = max(3, int(float(eg.get_vertex_size())*SAMPLING_START));
 			SAMPLING_COUNT += float(eg.get_vertex_size())*SAMPLING_GRAD*(1.0-float(remain)/TIME_LIMIT);
+#ifdef _PRINT_DEBUG
 			cout << generation << "th generation : " << remain << "/" << TIME_LIMIT << " - " << SAMPLING_COUNT << endl;
 			cout << "Score : " << score_avg << ", " << score_max << ", " << score_min << endl;
-		}
 #endif
+		}
 	}
 
 	return champ;
@@ -535,7 +533,7 @@ int main() {
 
 	SELECTION_HIGH_RATE = 30;
 	SAMPLING_START = 0.02;
-	SAMPLING_GRAD = 0.05;
+	SAMPLING_GRAD = 0.07;
 
 #ifdef _RAND_TEST
 	Chromosome rand_champ = get_random_champ(eg);

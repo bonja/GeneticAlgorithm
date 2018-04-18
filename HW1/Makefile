@@ -25,23 +25,23 @@ run: $(TARGET)
 	@./$(TARGET)
 
 test: $(TARGET)
-	@echo "=== test for unweighted_50 ==="
-	@cp -f data/unweighted_50.txt maxcut.in
-	@./$(TARGET)
-	@cat maxcut.out
-	@echo "=== test for unweighted_100 ==="
-	@cp -f data/unweighted_100.txt maxcut.in
-	@./$(TARGET)
-	@cat maxcut.out
-	@echo "=== test for unweighted_500 ==="
-	@cp -f data/unweighted_500.txt maxcut.in
-	@./$(TARGET)
-	@cat maxcut.out
-	@echo "=== test for weighted_500 ==="
-	@cp -f data/weighted_500.txt maxcut.in
-	@./$(TARGET)
-	@cat maxcut.out
 	@echo "=== test for weighted_chimera_297 ==="
 	@cp -f data/weighted_chimera_297.txt maxcut.in
 	@./$(TARGET)
 	@cat maxcut.out
+#@echo "=== test for unweighted_50 ==="
+#	@cp -f data/unweighted_50.txt maxcut.in
+#	@./$(TARGET)
+#	@cat maxcut.out
+#	@echo "=== test for unweighted_100 ==="
+#	@cp -f data/unweighted_100.txt maxcut.in
+#	@./$(TARGET)
+#	@cat maxcut.out
+#	@echo "=== test for unweighted_500 ==="
+#	@cp -f data/unweighted_500.txt maxcut.in
+#	@./$(TARGET)
+#	@cat maxcut.out
+#	@echo "=== test for weighted_500 ==="
+#	@cp -f data/weighted_500.txt maxcut.in
+#	@./$(TARGET)
+#	@cat maxcut.out
