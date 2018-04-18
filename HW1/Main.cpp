@@ -19,13 +19,15 @@
 
 using namespace std;
 
-int TIME_LIMIT = 20;
+int TIME_LIMIT = 180;
 int POPULATION_SIZE = 800;
 int CROSS_PER_GENERATION = 400;
 int CUT_COUNT = 10;
 
 int SELECTION_HIGH_RATE = 30;
-int SAMPLING_COUNT = 100;
+int SAMPLING_COUNT = 3;
+float SAMPLING_START = 0.01;
+float SAMPLING_GRAD = 100;
 
 class Chromosome {
 private:
@@ -358,7 +360,7 @@ void selection(EdgeGraphReader &eg, vector<Chromosome> &population,
 void selection_with_similarity(EdgeGraphReader &eg, vector<Chromosome> &population,
 		Chromosome **p1, Chromosome **p2, float target_similarity) {
 
-	// Pick a parent in the high 20 percent
+	// Pick a parent in the high 30 percent
 	int idx_p1 = (population.size() - 1) - (rand()%(population.size()/30));
 
 	// Pick a bride
@@ -397,9 +399,10 @@ void selection_with_similarity(EdgeGraphReader &eg, vector<Chromosome> &populati
 void replace(EdgeGraphReader &eg, vector<Chromosome> &population,
 		vector<Chromosome> &offsprings, float *score_avg, int *score_max, int *score_min) {
 
-	/* force to replace with children
+	// force to replace with children
 	int offsprings_size = offsprings.size();
 
+	/*
 	int idx_target = -1;
 	for(vector<Chromosome>::iterator it = offsprings.begin();
 			it != offsprings.end(); ++it) {
@@ -428,6 +431,8 @@ void replace(EdgeGraphReader &eg, vector<Chromosome> &population,
 		population.erase(population.begin());
 	}
 	*/
+
+	// Sampling check
 	for(vector<Chromosome>::iterator it = offsprings.begin();
 			it != offsprings.end(); ++it) {
 
@@ -564,8 +569,14 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 //			Chromosome child(*p1, *p2, target_diversity - current_diversity);
 
 			// mutate ratio
-			float m_w = 0.05;
-			child.mutation(m_w);
+			float m_w = 0.05 + 0.1*float(remain)/TIME_LIMIT;
+			/*
+			if (score_avg > (score_min + 0.9*(score_max - score_min))) {
+				cout << "Heavy mutation" << endl;
+				m_w = 0.5;
+			}
+			*/
+			child.mutation(0.05);
 
 			// New champion
 			int champ_score = champ.get_score();
@@ -590,7 +601,14 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 		generation += 1;
 		if (prev_remain != remain) {
 			prev_remain = remain;
-			cout << generation << "th generation" << endl;
+			SAMPLING_COUNT = max(3, int(float(eg.get_vertex_size())*SAMPLING_START));
+			SAMPLING_COUNT += float(eg.get_vertex_size())*SAMPLING_GRAD*(1.0-float(remain)/TIME_LIMIT);
+			/*
+			if (prev_remain == 90) {
+				SAMPLING_COUNT = 30;
+			}
+			*/
+			cout << generation << "th generation : " << remain << "/" << TIME_LIMIT << " - " << SAMPLING_COUNT << endl;
 //			cout << "Diversity : " << diversity.get_diversity() << endl;
 			cout << "Score : " << score_avg << ", " << score_max << ", " << score_min << endl;
 		}
@@ -612,39 +630,53 @@ int main() {
 	float cross_count_factor[] = {1.0, 1.5, 2.0, 2.5, 3.0};
 	float cut_count_factor[] = {5.0, 10.0, 15.0, 20.0};
 	*/
+	/*
 	float population_factor[] = {1.0, 4.0, 8.0};
 	float cross_count_factor[] = {1.0, 3.0, 5.0};
 	float cut_count_factor[] = {5.0, 15.0, 25.0};
 	int select_rate_factor[] = {25, 30, 35};
 	int sampling_factor[] = {5, 15, 25};
+	*/
+	float population_factor[] = {1.0};
+	float cross_count_factor[] = {1.5};
+	float cut_count_factor[] = {30.0};
+
+	int select_rate_factor[] = {30};
+	float sampling_start[] = {0.01, 0.02};
+	float sampling_grad[] = {0.03, 0.05, 0.07};
 
 	int p_f_max = sizeof(population_factor) / sizeof(population_factor[0]);
 	int c_f_max = sizeof(cross_count_factor) / sizeof(cross_count_factor[0]);
 	int cut_f_max = sizeof(cut_count_factor) / sizeof(cut_count_factor[0]);
 	int sel_f_max = sizeof(select_rate_factor) / sizeof(select_rate_factor[0]);
-	int sam_f_max = sizeof(sampling_factor) / sizeof(sampling_factor[0]);
+	int sam_s_f_max = sizeof(sampling_start) / sizeof(sampling_start[0]);
+	int sam_g_f_max = sizeof(sampling_grad) / sizeof(sampling_grad[0]);
 
 	for(int p_f_idx = 0; p_f_idx<p_f_max; ++p_f_idx) {
 		for (int c_f_idx =0; c_f_idx<c_f_max; ++c_f_idx) {
 			for (int cut_f_idx =0; cut_f_idx<cut_f_max; ++cut_f_idx) {
 				for (int sel_f_idx =0; sel_f_idx<sel_f_max; ++sel_f_idx) {
-					for (int sam_f_idx =0; sam_f_idx<sam_f_max; ++sam_f_idx) {
+					for (int sam_s_f_idx =0; sam_s_f_idx<sam_s_f_max; ++sam_s_f_idx) {
+						for (int sam_g_f_idx =0; sam_g_f_idx<sam_g_f_max; ++sam_g_f_idx) {
 						float p_factor = population_factor[p_f_idx];
 						float c_factor = cross_count_factor[c_f_idx];
 						float cut_factor = cut_count_factor[cut_f_idx];
 						float sel_factor = select_rate_factor[sel_f_idx];
-						float sam_factor = sampling_factor[sam_f_idx];
+						float sam_s_factor = sampling_start[sam_s_f_idx];
+						float sam_g_factor = sampling_grad[sam_g_f_idx];
 
 						POPULATION_SIZE = eg.get_vertex_size()*p_factor;
 						CROSS_PER_GENERATION = POPULATION_SIZE/c_factor;
 						CUT_COUNT = eg.get_vertex_size()/cut_factor;
 						SELECTION_HIGH_RATE = sel_factor;
-						SAMPLING_COUNT = POPULATION_SIZE/sam_factor;
+						SAMPLING_START = sampling_start[sam_s_f_idx];
+						SAMPLING_GRAD = sampling_grad[sam_g_f_idx];
 
 						Chromosome GA_champ = get_GA_champ(eg);
 						cout << GA_champ.get_score() << "," \
 							<< p_factor << "," << c_factor << "," \
-							<< cut_factor << "," << sel_factor << "," << sam_factor <<endl;
+							<< cut_factor << "," << sel_factor << "," << sam_s_factor << "," << sam_g_factor << endl;
+						}
 					}
 				}
 			}
@@ -657,12 +689,23 @@ int main() {
 	CROSS_PER_GENERATION = POPULATION_SIZE/2;
 	CUT_COUNT = eg.get_vertex_size()/15;
 	*/
+	/*
 	POPULATION_SIZE = eg.get_vertex_size()*5;
 	CROSS_PER_GENERATION = POPULATION_SIZE/2;
 	CUT_COUNT = eg.get_vertex_size()/5;
+	*/
+	/*
+	POPULATION_SIZE = eg.get_vertex_size()*2.5;
+	CROSS_PER_GENERATION = POPULATION_SIZE/3;
+	CUT_COUNT = eg.get_vertex_size()/15;
+	*/
+	POPULATION_SIZE = eg.get_vertex_size()*1.0;
+	CROSS_PER_GENERATION = POPULATION_SIZE/1.5;
+	CUT_COUNT = eg.get_vertex_size()/30;
 
 	SELECTION_HIGH_RATE = 30;
-	SAMPLING_COUNT = POPULATION_SIZE/25;
+	SAMPLING_START = 0.02;
+	SAMPLING_GRAD = 0.05;
 
 #ifdef _RAND_TEST
 	Chromosome rand_champ = get_random_champ(eg);
