@@ -5,6 +5,7 @@
 #include <limits.h>
 
 #include <iostream>
+#include <fstream>
 
 #include <string>
 #include <list>
@@ -241,6 +242,20 @@ public:
 		return _score;
 	}
 
+	void write_result(const char* result_file) {
+		ofstream fs(result_file, fstream::out | fstream::trunc);
+
+		for(int i=0; i<_gen_size; ++i) {
+			if (_gen[i] == 0)
+				continue;
+			if (i > 0)
+				fs << " ";
+			fs << (i+1);
+		}
+
+		fs.close();
+	}
+
 
 private:
 	Chromosome() {}
@@ -437,7 +452,7 @@ int main() {
 	// Fix rand seed
 //	srand(3850);
 
-	EdgeGraphReader eg = EdgeGraphReader(string("maxcur.in"));
+	EdgeGraphReader eg = EdgeGraphReader(string("maxcut.in"));
 #ifdef _FACTOR_TEST
 	/*
 	float population_factor[] = {1.0, 1.5, 2.0, 2.5};
@@ -508,14 +523,15 @@ int main() {
 	CROSS_PER_GENERATION = POPULATION_SIZE/2;
 	CUT_COUNT = eg.get_vertex_size()/5;
 	*/
-	/*
 	POPULATION_SIZE = eg.get_vertex_size()*2.5;
 	CROSS_PER_GENERATION = POPULATION_SIZE/3;
-	CUT_COUNT = eg.get_vertex_size()/15;
-	*/
+//	CUT_COUNT = eg.get_vertex_size()/15;
+	CUT_COUNT = 20;
+	/*
 	POPULATION_SIZE = eg.get_vertex_size()*1.0;
 	CROSS_PER_GENERATION = POPULATION_SIZE/1.5;
 	CUT_COUNT = eg.get_vertex_size()/30;
+	*/
 
 	SELECTION_HIGH_RATE = 30;
 	SAMPLING_START = 0.02;
@@ -526,7 +542,9 @@ int main() {
 	cout << "Random champ : " << rand_champ.get_score() << endl;
 #else
 	Chromosome GA_champ = get_GA_champ(eg);
-	cout << "GA champ : " << GA_champ.get_score() << endl;
+
+	GA_champ.write_result("maxcut.out");
+	cout << GA_champ.get_score() << endl;
 #endif
 #endif
 

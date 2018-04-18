@@ -2,7 +2,7 @@
 SRCS = $(wildcard *.cpp)
 OBJS = $(SRCS:.cpp=.o)
 
-MACRO = -D_PRINT_DEBUG -D_RAND_TEST_ -D_FACTOR_TEST_
+MACRO = -D_PRINT_DEBUG_ -D_RAND_TEST_ -D_FACTOR_TEST_ -D_SUBMIT
 OPT = -O3
 
 TARGET = hw1
@@ -25,18 +25,23 @@ run: $(TARGET)
 	@./$(TARGET)
 
 test: $(TARGET)
-#@echo "=== test for unweighted_50 ==="
-#	@cp -f data/unweighted_50.txt maxcur.in
-#	@./$(TARGET)
-#	@echo "=== test for unweighted_100 ==="
-#	@cp -f data/unweighted_100.txt maxcur.in
-#	@./$(TARGET)
+	@echo "=== test for unweighted_50 ==="
+	@cp -f data/unweighted_50.txt maxcut.in
+	@./$(TARGET)
+	@cat maxcut.out
+	@echo "=== test for unweighted_100 ==="
+	@cp -f data/unweighted_100.txt maxcut.in
+	@./$(TARGET)
+	@cat maxcut.out
 	@echo "=== test for unweighted_500 ==="
-	@cp -f data/unweighted_500.txt maxcur.in
+	@cp -f data/unweighted_500.txt maxcut.in
 	@./$(TARGET)
+	@cat maxcut.out
 	@echo "=== test for weighted_500 ==="
-	@cp -f data/weighted_500.txt maxcur.in
+	@cp -f data/weighted_500.txt maxcut.in
 	@./$(TARGET)
+	@cat maxcut.out
 	@echo "=== test for weighted_chimera_297 ==="
-	@cp -f data/weighted_chimera_297.txt maxcur.in
+	@cp -f data/weighted_chimera_297.txt maxcut.in
 	@./$(TARGET)
+	@cat maxcut.out
