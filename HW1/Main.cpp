@@ -603,7 +603,7 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 int main() {
 
 	// Fix rand seed
-	srand(3850);
+//	srand(3850);
 
 	EdgeGraphReader eg = EdgeGraphReader(string("maxcur.in"));
 #ifdef _FACTOR_TEST
