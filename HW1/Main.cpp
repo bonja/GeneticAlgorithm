@@ -269,77 +269,6 @@ Chromosome get_random_champ(EdgeGraphReader &eg) {
 	return champ;
 }
 
-class Diversity {
-
-private:
-	int _gen_size;
-	double _population_size;
-	int _population_size_half;
-
-	int *_gen_data;
-	int _gen_data_count;
-
-	double _deviation_sum;
-
-public:
-	Diversity(int gen_size, vector<Chromosome> &population) :
-		_gen_size(gen_size)
-	{
-		_gen_data = new int[_gen_size];
-		_gen_data_count = population.size();
-
-		_population_size = (double)population.size();
-		for(vector<Chromosome>::iterator it = population.begin();
-				it != population.end(); ++it) {
-			const char* gen = (*it).get_gen();
-			for(int i=0; i<_gen_size; ++i) {
-				if (gen[i] == 0) {
-					++_gen_data[i];
-				}
-			}
-		}
-		
-		_deviation_sum = 0.0;
-		_population_size_half = _population_size / 2.0;
-		for(int i=0; i<_gen_size; ++i) {
-			_deviation_sum += abs(_gen_data[i] - _population_size_half);
-		}
-	}
-
-	~Diversity() {
-		delete(_gen_data);
-	}
-
-public:
-	void add_gen(const char *gen) {
-		for (int i=0; i<_gen_size; ++i) {
-			if (gen[i] == 0) {
-				_deviation_sum += _gen_data[i] < _population_size_half ? -1 : 1;
-				++_gen_data[i];
-			}
-		}
-		++_gen_data_count;
-	}
-
-	void remove_gen(const char *gen) {
-		for (int i=0; i<_gen_size; ++i) {
-			if (gen[i] == 0) {
-				_deviation_sum += _gen_data[i] > _population_size_half ? -1 : 1;
-				--_gen_data[i];
-			}
-		}
-		--_gen_data_count;
-	}
-
-public:
-	float get_diversity() {
-		return (1.0 - _deviation_sum / (double)_gen_data_count / _population_size * 2.0);
-	}
-
-private:
-	Diversity() {}
-};
-
 // GA implementations
 void selection(EdgeGraphReader &eg, vector<Chromosome> &population,
 		Chromosome **p1, Chromosome **p2) {
@@ -352,45 +281,6 @@ void selection(EdgeGraphReader &eg, vector<Chromosome> &population,
 	if (idx_p1 == idx_p2) {
 		idx_p2 = (idx_p2 + 1)%population.size();
 	}
-
-	*p1 = &population[idx_p1];
-	*p2 = &population[idx_p2];
-}
-
-void selection_with_similarity(EdgeGraphReader &eg, vector<Chromosome> &population,
-		Chromosome **p1, Chromosome **p2, float target_similarity) {
-
-	// Pick a parent in the high 30 percent
-	int idx_p1 = (population.size() - 1) - (rand()%(population.size()/30));
-
-	// Pick a bride
-	int idx_p2 = rand()%population.size();
-	if (idx_p1 == idx_p2) {
-		idx_p2 = (idx_p2 + 1)%population.size();
-	}
-	float diff_brid = target_similarity - population[idx_p1].get_similarity(population[idx_p2]);
-	if (diff_brid < 0.0)	diff_brid *= -1;
-
-	// Sampling to find a most similar bride
-	for (int i=0; i<SAMPLING_COUNT; ++i) {
-		int idx_cand = rand()%population.size();
-
-		if ((idx_p1 == idx_cand) || (idx_p2 == idx_cand))
-			continue;
-
-		float diff_cand = target_similarity - population[idx_p1].get_similarity(population[idx_cand]);
-		if (diff_cand < 0.0)	diff_cand *= -1;
-
-		// Swapping
-		if (diff_cand < diff_brid) {
-			idx_p2 = idx_cand;
-			diff_brid = diff_cand;
-		}
-	}
-
-	/*
-	cout << target_similarity << " : " << diff_brid << endl;
-	*/
 
 	*p1 = &population[idx_p1];
 	*p2 = &population[idx_p2];
@@ -463,49 +353,6 @@ void replace(EdgeGraphReader &eg, vector<Chromosome> &population,
 	*score_min = population[0].get_score();
 }
 
-void replace_with_diversity(EdgeGraphReader &eg, vector<Chromosome> &population,
-		vector<Chromosome> &offsprings, float grad_diversity,
-		Diversity &diversity, float *score_avg, int *score_max, int *score_min) {
-
-	set<int> exchanged;
-
-	bool find_similar = grad_diversity > 0 ? false : true;
-	for(vector<Chromosome>::iterator it = offsprings.begin();
-			it != offsprings.end(); ++it) {
-
-		int idx_target = rand()%population.size();
-		float similar_target = (*it).get_similarity(population[idx_target]);
-
-		for (int i=0; i<SAMPLING_COUNT; ++i) {
-			int idx_cand = rand()%population.size();
-			if (idx_target == idx_cand)
-				continue;
-
-			int similar_cand = (*it).get_similarity(population[idx_cand]);
-			if (find_similar && ( similar_cand > similar_target )) {
-				idx_target == idx_cand;
-				similar_target = similar_cand;
-			}
-		}
-
-		if (exchanged.find(idx_target) == exchanged.end()) {
-			diversity.remove_gen(population[idx_target].get_gen());
-			diversity.add_gen((*it).get_gen());
-
-			*score_avg -= (float)population[idx_target].get_score()/(float)population.size();
-			*score_avg += (float)(*it).get_score()/(float)population.size();
-
-			population[idx_target] = (*it);
-			exchanged.insert(idx_target);
-		}
-	}
-	//TODO - optimization
-	sort(population.begin(), population.end());
-
-	*score_max = population[population.size()-1].get_score();
-	*score_min = population[0].get_score();
-}
-
 Chromosome get_GA_champ(EdgeGraphReader &eg) {
 
 	time_t begin = time(NULL);
@@ -519,12 +366,6 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 	// Champion
 	Chromosome champ(population.back());
 	
-	// Diversity initialize
-	Diversity diversity(eg.get_vertex_size(), population);
-#ifdef _PRINT_DEBUG
-	cout << "Diversity : " << diversity.get_diversity() << endl;
-#endif
-
 	// Score static initialize
 	float score_avg = 0.0;
 	int score_max = 0, score_min = INT_MAX;
@@ -552,30 +393,15 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 			break;
 		}
 
-		/*
-		float target_similarity = (float)(remain + 1) / (float)TIME_LIMIT;
-		float target_diversity = 0.4 + target_similarity/2;
-
-		float current_diversity = diversity.get_diversity();
-		*/
-
 		vector<Chromosome> offsprings;
 		for (int i=0; i<CROSS_PER_GENERATION; ++i) {
 			Chromosome *p1, *p2;
 
 			selection(eg, population, &p1, &p2);
 			Chromosome child(*p1, *p2);
-//			selection(eg, population, &p1, &p2, target_similarity);
-//			Chromosome child(*p1, *p2, target_diversity - current_diversity);
 
 			// mutate ratio
-			float m_w = 0.05 + 0.1*float(remain)/TIME_LIMIT;
-			/*
-			if (score_avg > (score_min + 0.9*(score_max - score_min))) {
-				cout << "Heavy mutation" << endl;
-				m_w = 0.5;
-			}
-			*/
+			//float m_w = 0.05 + 0.1*float(remain)/TIME_LIMIT;
 			child.mutation(0.05);
 
 			// New champion
@@ -591,25 +417,13 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 		replace(eg, population, offsprings, 
 				&score_avg, &score_max, &score_min);
 
-		/*
-		replace_with_diversity(eg, population, offsprings,
-				target_diversity - current_diversity,
-				diversity, &score_avg, &score_max, &score_min);
-				*/
-
 #ifdef _PRINT_DEBUG
 		generation += 1;
 		if (prev_remain != remain) {
 			prev_remain = remain;
 			SAMPLING_COUNT = max(3, int(float(eg.get_vertex_size())*SAMPLING_START));
 			SAMPLING_COUNT += float(eg.get_vertex_size())*SAMPLING_GRAD*(1.0-float(remain)/TIME_LIMIT);
-			/*
-			if (prev_remain == 90) {
-				SAMPLING_COUNT = 30;
-			}
-			*/
 			cout << generation << "th generation : " << remain << "/" << TIME_LIMIT << " - " << SAMPLING_COUNT << endl;
-//			cout << "Diversity : " << diversity.get_diversity() << endl;
 			cout << "Score : " << score_avg << ", " << score_max << ", " << score_min << endl;
 		}
 #endif
@@ -715,9 +529,6 @@ int main() {
 	cout << "GA champ : " << GA_champ.get_score() << endl;
 #endif
 #endif
-	// TODO - dynamic cut count
-	// TODO - dynamic mutation ratio
-	// TODO - dynamic selection - polynomial? exponetial?
 
 	return 0;
 }
