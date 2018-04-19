@@ -3,5 +3,5 @@
 !*/Makefile
 !*.h
 !*.cpp
-!*.in
 !*/data/*
+!*/results/*
