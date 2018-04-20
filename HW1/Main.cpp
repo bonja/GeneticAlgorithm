@@ -162,44 +162,6 @@ public:
 		}
 	}
 
-	// Xover - check diversity
-	Chromosome(const Chromosome& p1,
-			const Chromosome& p2, float grad_diversity) {
-		assert(p1._gen_size == p2._gen_size);
-
-		const char *p1_gen = p1.get_gen();
-		const char *p2_gen = p2.get_gen();
-
-		init(p1.get_gen(), p1._eg);
-
-		if (grad_diversity > 0.3)	grad_diversity = 0.3;
-		if (grad_diversity < -0.3)	grad_diversity = -0.3;
-
-		// p1 is better, so choose a even number of cut.
-		// more cut will increase diversity.
-		int cut_count = ((int)((float)_gen_size / 15.0 + (float)_gen_size / 4.0 * (grad_diversity+0.3) / 0.6)) * 2;
-
-		/*
-		cout << "grad : " << grad_diversity << endl;
-		cout << "cut_count : " << cut_count << endl;
-		*/
-
-		set<int> idxs_cut;
-		while(idxs_cut.size() < cut_count) {
-			idxs_cut.insert(rand()%(_gen_size+1));
-		}
-
-		bool p1_turn = true;
-		set<int>::iterator it = idxs_cut.begin();
-		for(int i=0; i<_gen_size; ++i) {
-			if ((it != idxs_cut.end()) && ((*it) == i)) {
-				p1_turn = p1_turn ? false : true;
-				++it;
-			}
-			_gen[i] = p1_turn ? p1_gen[i] : p2_gen[i];
-		}
-	}
-
 	// Mutation
 	void mutation(float weight) {
 		// Not for first gen that should be 1 always
@@ -355,8 +317,10 @@ void replace(EdgeGraphReader &eg, vector<Chromosome> &population,
 
 		// converge too fast
 	//	if((*it).get_score() > population[idx_target].get_score()) {
+#ifndef _SUBMIT
 		*score_avg -= (float)population[idx_target].get_score()/(float)population.size();
 		*score_avg += (float)(*it).get_score()/(float)population.size();
+#endif
 
 		population[idx_target] = *it; 
 	}
@@ -364,8 +328,10 @@ void replace(EdgeGraphReader &eg, vector<Chromosome> &population,
 	//TODO - optimization
 	sort(population.begin(), population.end());
 	
+#ifndef _SUBMIT
 	*score_max = population[population.size()-1].get_score();
 	*score_min = population[0].get_score();
+#endif
 }
 
 Chromosome get_GA_champ(EdgeGraphReader &eg) {
@@ -384,6 +350,7 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 	// Score static initialize
 	float score_avg = 0.0;
 	int score_max = 0, score_min = INT_MAX;
+#ifndef _SUBMIT
 	for (vector<Chromosome>::iterator it = population.begin();
 			it != population.end(); ++it) {
 		int score = (*it).get_score();
@@ -391,6 +358,7 @@ Chromosome get_GA_champ(EdgeGraphReader &eg) {
 	}
 	score_max = population[population.size()-1].get_score();
 	score_min = population[0].get_score();
+#endif //_SUBMIT
 
 #ifdef _PRINT_DEBUG
 	cout << score_avg << "," << score_max << "," << score_min << endl;
